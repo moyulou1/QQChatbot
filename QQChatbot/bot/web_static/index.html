@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QQ Bot 管理控制台</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg-primary: #0f1117; --bg-secondary: #1a1d27; --bg-tertiary: #252836;
+  --bg-hover: #2d3142; --border: #2d3142; --text-primary: #e4e6f0;
+  --text-secondary: #9ca0b0; --text-muted: #6b7080; --accent: #6c8cff;
+  --accent-hover: #5a7aee; --success: #4ade80; --warning: #fbbf24;
+  --danger: #f87171; --purple: #a78bfa; --cyan: #22d3ee;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; font-size: 14px;
+}
+.login-overlay {
+  position: fixed; inset: 0; background: var(--bg-primary);
+  display: flex; align-items: center; justify-content: center; z-index: 1000;
+}
+.login-box {
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: 16px; padding: 40px; width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+.login-box h1 { font-size: 22px; margin-bottom: 8px; }
+.login-box p { color: var(--text-secondary); margin-bottom: 24px; font-size: 13px; }
+.login-box input {
+  width: 100%; padding: 12px 16px; background: var(--bg-tertiary);
+  border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary);
+  font-size: 14px; outline: none;
+}
+.login-box input:focus { border-color: var(--accent); }
+.login-box button {
+  width: 100%; margin-top: 16px; padding: 12px; background: var(--accent);
+  border: none; border-radius: 8px; color: white; font-size: 14px; cursor: pointer; font-weight: 600;
+}
+.login-box button:hover { background: var(--accent-hover); }
+.login-error { color: var(--danger); margin-top: 12px; font-size: 13px; display: none; }
+.app { display: flex; min-height: 100vh; }
+.sidebar {
+  width: 220px; background: var(--bg-secondary); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; position: fixed; height: 100vh;
+}
+.sidebar-header { padding: 20px; border-bottom: 1px solid var(--border); }
+.sidebar-header h2 { font-size: 16px; display: flex; align-items: center; gap: 8px; }
+.sidebar-header .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); box-shadow: 0 0 8px var(--success); }
+.sidebar-header .sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.nav { flex: 1; padding: 12px 8px; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+  border-radius: 8px; cursor: pointer; color: var(--text-secondary);
+  transition: all 0.15s; margin-bottom: 2px; font-size: 13px;
+}
+.nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+.nav-item.active { background: var(--accent); color: white; }
+.nav-item .icon { width: 18px; text-align: center; font-size: 15px; }
+.sidebar-footer { padding: 16px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text-muted); }
+.main { flex: 1; margin-left: 220px; padding: 24px 32px; }
+.page { display: none; }
+.page.active { display: block; }
+.page-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+.page-subtitle { color: var(--text-secondary); font-size: 13px; margin-bottom: 24px; }
+.card {
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: 12px; padding: 20px; margin-bottom: 16px;
+}
+.card-title { font-size: 14px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+.card-title .badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: var(--bg-tertiary); color: var(--text-secondary); font-weight: 400; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px; }
+.stat-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+.stat-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; }
+.stat-value { font-size: 26px; font-weight: 700; }
+.stat-value .unit { font-size: 13px; color: var(--text-secondary); font-weight: 400; margin-left: 4px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; padding: 10px 12px; color: var(--text-secondary); font-weight: 500; border-bottom: 1px solid var(--border); font-size: 12px; }
+td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+tr:hover td { background: var(--bg-hover); }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 500; }
+.tag-blue { background: rgba(108,140,255,0.15); color: var(--accent); }
+.tag-green { background: rgba(74,222,128,0.15); color: var(--success); }
+.tag-yellow { background: rgba(251,191,36,0.15); color: var(--warning); }
+.tag-red { background: rgba(248,113,113,0.15); color: var(--danger); }
+.tag-purple { background: rgba(167,139,250,0.15); color: var(--purple); }
+.btn {
+  padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--bg-tertiary); color: var(--text-primary); cursor: pointer;
+  font-size: 13px; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px;
+}
+.btn:hover { background: var(--bg-hover); border-color: var(--accent); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: white; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-danger { background: rgba(248,113,113,0.15); border-color: var(--danger); color: var(--danger); }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.input, select, textarea {
+  padding: 8px 12px; background: var(--bg-tertiary); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text-primary); font-size: 13px; outline: none; width: 100%;
+}
+.input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+textarea { font-family: 'Consolas', 'Monaco', monospace; resize: vertical; line-height: 1.6; }
+label { font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 6px; }
+.form-row { display: flex; gap: 12px; margin-bottom: 14px; }
+.form-group { flex: 1; }
+.personality-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.personality-card {
+  background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 10px;
+  padding: 16px; cursor: pointer; transition: all 0.15s; position: relative;
+}
+.personality-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+.personality-card.active { border-color: var(--accent); background: rgba(108,140,255,0.08); }
+.personality-card .p-name { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.personality-card .p-file { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
+.personality-card .p-traits { display: flex; flex-wrap: wrap; gap: 4px; }
+.personality-card .active-badge { position: absolute; top: 12px; right: 12px; }
+.editor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.editor-pane { display: flex; flex-direction: column; }
+.editor-pane textarea { flex: 1; min-height: 400px; font-size: 12px; }
+.preview-pane { background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px; padding: 16px; overflow-y: auto; max-height: 500px; font-size: 12px; line-height: 1.7; white-space: pre-wrap; color: var(--text-secondary); }
+.log-container { background: #0a0c12; border: 1px solid var(--border); border-radius: 8px; padding: 12px; height: 360px; overflow-y: auto; font-family: 'Consolas', monospace; font-size: 12px; line-height: 1.6; }
+.log-line { display: flex; gap: 8px; padding: 2px 0; }
+.log-time { color: var(--text-muted); flex-shrink: 0; }
+.log-level { flex-shrink: 0; width: 50px; font-weight: 600; }
+.log-level.info { color: var(--cyan); }
+.log-level.warn { color: var(--warning); }
+.log-level.error { color: var(--danger); }
+.log-msg { color: var(--text-primary); word-break: break-all; }
+.debug-send { display: flex; gap: 10px; margin-bottom: 16px; align-items: flex-end; }
+.debug-send .form-group { flex: 1; }
+.debug-result { background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-top: 12px; display: none; }
+.debug-result .label { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
+.debug-result .content { font-size: 14px; line-height: 1.6; }
+.debug-result .meta { font-size: 11px; color: var(--text-muted); margin-top: 8px; }
+.config-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.config-item { background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+.config-item .cfg-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+.config-item .cfg-label .readonly { font-size: 10px; color: var(--text-muted); }
+.config-item input[type="range"] { width: 100%; }
+.config-item .range-value { font-size: 13px; font-weight: 600; color: var(--accent); }
+.switch { position: relative; display: inline-block; width: 40px; height: 22px; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; inset: 0; background: var(--bg-hover); border-radius: 22px; transition: 0.2s; }
+.slider:before { content: ""; position: absolute; height: 16px; width: 16px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.2s; }
+input:checked + .slider { background: var(--accent); }
+input:checked + .slider:before { transform: translateX(18px); }
+.chart-container { position: relative; height: 280px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.toast { position: fixed; top: 20px; right: 20px; padding: 12px 20px; border-radius: 8px; font-size: 13px; z-index: 2000; opacity: 0; transform: translateY(-10px); transition: all 0.3s; pointer-events: none; }
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.success { background: rgba(74,222,128,0.15); border: 1px solid var(--success); color: var(--success); }
+.toast.error { background: rgba(248,113,113,0.15); border: 1px solid var(--danger); color: var(--danger); }
+.toast.info { background: rgba(108,140,255,0.15); border: 1px solid var(--accent); color: var(--accent); }
+.empty-state { text-align: center; padding: 40px; color: var(--text-muted); font-size: 13px; }
+/* 实时日志页 */
+.log-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--bg-tertiary); flex-wrap: wrap; gap: 8px; }
+.log-filter-btn { padding: 4px 10px; font-size: 11px; background: var(--bg-secondary); border: 1px solid var(--border); color: var(--text-secondary); border-radius: 4px; cursor: pointer; }
+.log-filter-btn:hover { border-color: var(--accent); color: var(--text-primary); }
+.log-filter-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+.log-viewer { height: calc(100vh - 280px); min-height: 400px; overflow-y: auto; padding: 8px 0; background: #0a0c12; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 12px; line-height: 1.6; }
+.log-line { padding: 2px 16px; white-space: pre-wrap; word-break: break-all; display: flex; gap: 8px; }
+.log-line:hover { background: rgba(108,140,255,0.06); }
+.log-time { color: var(--text-muted); flex-shrink: 0; min-width: 60px; }
+.log-level { flex-shrink: 0; min-width: 50px; font-weight: 600; }
+.log-level.info { color: var(--cyan); }
+.log-level.warning { color: var(--warning); }
+.log-level.error { color: var(--danger); }
+.log-level.debug { color: var(--text-muted); }
+.log-msg { color: var(--text-primary); flex: 1; }
+.log-statusbar { display: flex; justify-content: space-between; padding: 6px 16px; border-top: 1px solid var(--border); background: var(--bg-tertiary); font-size: 11px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <h1>QQ Bot 控制台</h1>
+    <p>请输入控制台访问令牌以继续</p>
+    <input type="password" id="loginToken" placeholder="控制台令牌" autocomplete="off">
+    <div class="login-hint" style="font-size:12px;color:#8a8fa3;margin:2px 0 4px;">默认令牌：<code style="color:#a78bfa;">admin123</code>（可在 bot/.env 的 CONSOLE_TOKEN 修改，登录后自动记住）</div>
+    <div class="login-error" id="loginError">令牌错误，请重试</div>
+    <button onclick="doLogin()">登 录</button>
+  </div>
+</div>
+<div class="app" id="app" style="display:none">
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h2><span class="dot"></span> QQ Bot Admin</h2>
+      <div class="sub" id="sidebarSub">管理控制台 v1.0</div>
+    </div>
+    <div class="nav">
+      <div class="nav-item" data-page="status" onclick="switchPage('status')"><span class="icon">🟢</span> 运行状态</div>
+      <div class="nav-item active" data-page="dashboard" onclick="switchPage('dashboard')"><span class="icon">📊</span> 仪表盘</div>
+      <div class="nav-item" data-page="token" onclick="switchPage('token')"><span class="icon">💰</span> Token 消耗</div>
+      <div class="nav-item" data-page="personality" onclick="switchPage('personality')"><span class="icon">🎭</span> 人格管理</div>
+      <div class="nav-item" data-page="debug" onclick="switchPage('debug')"><span class="icon">🔧</span> 调试控制台</div>
+      <div class="nav-item" data-page="config" onclick="switchPage('config')"><span class="icon">⚙️</span> 配置管理</div>
+      <div class="nav-item" data-page="logs" onclick="switchPage('logs')"><span class="icon">📜</span> 实时日志</div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="model-info" id="sidebarModel">模型: --</div>
+      <div style="margin-top:6px">人格: <span id="sidebarPersonality">--</span></div>
+    </div>
+  </div>
+  <div class="main">
+    <div class="page" id="page-status">
+      <div class="page-title">运行状态</div>
+      <div class="page-subtitle">各服务是否就绪、一键启停、推理模式与群友画像</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="card">
+          <div class="card-title">服务就绪状态 <button class="btn btn-sm" onclick="loadStatus()">立即刷新</button></div>
+          <div id="svcList"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">运行控制</div>
+          <div style="margin-bottom:12px;font-size:13px">
+            自动回复：<span id="replyStateBadge" class="tag">--</span>
+            <span style="margin-left:14px">后端进程：<span id="backendStateBadge" class="tag">--</span></span>
+            <span style="margin-left:14px">守护进程：<span id="watchdogBadge" class="tag">--</span></span>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+            <button class="btn btn-primary" onclick="ctrlReply('start')">▶ 启动/恢复回复</button>
+            <button class="btn" onclick="ctrlReply('pause')">⏸ 暂停回复</button>
+            <button class="btn" onclick="procRestart()">🔄 重启后端</button>
+            <button class="btn btn-danger" onclick="procStop()">■ 结束进程</button>
+            <button class="btn" onclick="procStart()">拉起进程</button>
+          </div>
+          <div class="form-group" style="margin-bottom:10px">
+            <label>推理模式（何时调用 deepseek-reasoner 深度思考）</label>
+            <select class="input" id="reasonMode" onchange="setReasonMode()" style="max-width:340px">
+              <option value="auto">auto：数学/逻辑/专业问题自动深度思考（推荐）</option>
+              <option value="chat">chat：始终用轻快模型</option>
+              <option value="reasoner">reasoner：始终深度思考（较慢、较贵）</option>
+            </select>
+          </div>
+          <button class="btn btn-sm" onclick="testDeepSeek()">测试 DeepSeek 连接</button>
+          <span id="dsTestResult" style="margin-left:10px;font-size:12px;color:var(--text-secondary)"></span>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:10px;line-height:1.7">
+            「暂停回复」=QQ 仍在线、只听不回；「结束/重启/拉起进程」经守护进程 watchdog(127.0.0.1:18081) 操作后端，后端意外崩溃也会被它自动拉起。若守护进程显示离线，进程级按钮不可用，请在桌面双击 <code>start.bat all</code>。
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">今日运行概览</div>
+        <div class="stats-grid" style="margin-bottom:0">
+          <div class="stat-card" style="background:var(--bg-tertiary)"><div class="stat-label">今日调用</div><div class="stat-value" id="stCalls" style="font-size:20px">0</div></div>
+          <div class="stat-card" style="background:var(--bg-tertiary)"><div class="stat-label">今日 Token</div><div class="stat-value" id="stTokens" style="font-size:20px">0</div></div>
+          <div class="stat-card" style="background:var(--bg-tertiary)"><div class="stat-label">平均延迟</div><div class="stat-value" id="stLatency" style="font-size:20px">0ms</div></div>
+          <div class="stat-card" style="background:var(--bg-tertiary)"><div class="stat-label">后端已运行</div><div class="stat-value" id="stUptime" style="font-size:20px">0m</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">群友画像（自动记录每个群友的档案）
+          <div style="display:flex;gap:6px;align-items:center">
+            <input class="input" style="width:140px" id="profileGroupId" value="424941254">
+            <button class="btn btn-sm" onclick="loadProfiles()">查看</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto"><table>
+          <thead><tr><th>QQ</th><th>称呼</th><th>性别</th><th>年龄</th><th>职业</th><th>所在地</th><th>爱好</th><th>概述</th><th>发言数</th><th>操作</th></tr></thead>
+          <tbody id="profilesBody"><tr><td colspan="10" class="empty-state">输入群号点“查看”</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+    <div class="page active" id="page-dashboard">
+      <div class="page-title">仪表盘</div>
+      <div class="page-subtitle">运行状态与今日消耗概览</div>
+      <div class="stats-grid" id="dashStats">
+        <div class="stat-card"><div class="stat-label">今日调用次数</div><div class="stat-value" id="statCalls">0</div></div>
+        <div class="stat-card"><div class="stat-label">今日 Token 消耗</div><div class="stat-value" id="statTokens">0<span class="unit">tokens</span></div></div>
+        <div class="stat-card"><div class="stat-label">今日费用</div><div class="stat-value" id="statCost">¥0.00</div></div>
+        <div class="stat-card"><div class="stat-label">平均延迟</div><div class="stat-value" id="statLatency">0<span class="unit">ms</span></div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="card"><div class="card-title">近7日 Token 趋势</div><div class="chart-container"><canvas id="trendChart"></canvas></div></div>
+        <div class="card"><div class="card-title">今日模型分布</div><div class="chart-container"><canvas id="modelChart"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">累计统计</div>
+        <div class="stats-grid" style="margin-bottom:0">
+          <div class="stat-card" style="background:var(--bg-tertiary)"><div class="stat-label">总调用次数</div><div class="stat-value" id="totalCalls" style="font-size:20px">0</div></div>
+          <div class="stat-card" style="background:var(--bg-tertiary)"><div class="stat-label">总 Token 消耗</div><div class="stat-value" id="totalTokens" style="font-size:20px">0</div></div>
+          <div class="stat-card" style="background:var(--bg-tertiary)"><div class="stat-label">总费用</div><div class="stat-value" id="totalCost" style="font-size:20px">¥0.00</div></div>
+          <div class="stat-card" style="background:var(--bg-tertiary)"><div class="stat-label">运行时长</div><div class="stat-value" id="uptime" style="font-size:20px">0h</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="page" id="page-token">
+      <div class="page-title">Token 消耗统计</div>
+      <div class="page-subtitle">详细的 API 调用记录与费用分析</div>
+      <div class="card">
+        <div class="card-title">每日消耗趋势
+          <select class="input" style="width:120px" id="tokenDays" onchange="loadTokenHistory()">
+            <option value="7">近7天</option><option value="14">近14天</option><option value="30" selected>近30天</option><option value="90">近90天</option>
+          </select>
+        </div>
+        <div class="chart-container" style="height:300px"><canvas id="tokenHistoryChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">最近调用记录 <button class="btn btn-sm" onclick="loadRecentCalls()">刷新</button></div>
+        <div style="overflow-x:auto"><table>
+          <thead><tr><th>时间</th><th>模型</th><th>群</th><th>用户</th><th>输入</th><th>输出</th><th>总计</th><th>延迟</th><th>费用</th></tr></thead>
+          <tbody id="recentCallsBody"><tr><td colspan="9" class="empty-state">加载中...</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+    <div class="page" id="page-personality">
+      <div class="page-title">人格管理</div>
+      <div class="page-subtitle">创建、编辑和切换机器人人格，实时预览系统提示词</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="display:flex;gap:8px;align-items:center">
+          <input class="input" style="width:200px" id="newPersonalityName" placeholder="新人格文件名（英文）">
+          <button class="btn btn-primary" onclick="createPersonality()">+ 新建人格</button>
+        </div>
+        <button class="btn" onclick="loadPersonalities()">刷新列表</button>
+      </div>
+      <div class="personality-list" id="personalityList"></div>
+      <div class="card" id="editorCard" style="display:none">
+        <div class="card-title"><span>编辑人格: <span id="editingName" style="color:var(--accent)"></span></span>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-sm" onclick="previewPersonality()">生成预览</button>
+            <button class="btn btn-sm btn-primary" onclick="savePersonality()">保存</button>
+            <button class="btn btn-sm btn-primary" onclick="activatePersonality()">激活此人格</button>
+            <button class="btn btn-sm btn-danger" onclick="deletePersonality()">删除</button>
+          </div>
+        </div>
+        <div class="editor-layout">
+          <div class="editor-pane"><label>YAML 配置</label><textarea id="personalityEditor" spellcheck="false"></textarea></div>
+          <div class="editor-pane"><label>系统提示词预览 <span id="previewLen" style="color:var(--text-muted)"></span></label>
+            <div class="preview-pane" id="personalityPreview">点击"生成预览"查看系统提示词</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="page" id="page-debug">
+      <div class="page-title">调试控制台</div>
+      <div class="page-subtitle">发送测试消息、查看实时日志、管理对话记忆</div>
+      <div class="card">
+        <div class="card-title">发送测试消息（不经过QQ，直接调用LLM）</div>
+        <div class="debug-send">
+          <div class="form-group"><label>群ID</label><input class="input" id="debugGroupId" value="10001" style="width:120px"></div>
+          <div class="form-group"><label>用户名</label><input class="input" id="debugUserName" value="测试用户" style="width:120px"></div>
+          <div class="form-group" style="flex:2"><label>消息内容</label><input class="input" id="debugMessage" placeholder="输入测试消息..." onkeydown="if(event.key==='Enter')sendDebug()"></div>
+          <button class="btn btn-primary" onclick="sendDebug()" id="debugSendBtn">发送</button>
+        </div>
+        <div class="debug-result" id="debugResult"><div class="label">AI 回复</div><div class="content" id="debugReply"></div><div class="meta" id="debugMeta"></div><div id="debugReasoningWrap" style="display:none;margin-top:10px"><div class="label" style="color:var(--warning)">🧠 深度思考过程（reasoner，不会发进群）</div><div id="debugReasoning" style="font-size:12px;color:var(--text-secondary);white-space:pre-wrap;max-height:200px;overflow-y:auto;background:var(--bg-tertiary);padding:8px;border-radius:6px"></div></div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="card">
+          <div class="card-title">实时日志 <div style="display:flex;gap:6px"><button class="btn btn-sm" onclick="clearLogDisplay()">清空</button><span class="badge" id="logCount">0 条</span></div></div>
+          <div class="log-container" id="logContainer"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">群记忆管理 <div style="display:flex;gap:6px"><input class="input" style="width:120px" id="memoryGroupId" value="10001"><button class="btn btn-sm" onclick="loadMemory()">查看</button><button class="btn btn-sm btn-danger" onclick="clearMemory()">清空</button></div></div>
+          <div style="margin-bottom:12px"><div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px">短期上下文（最近对话）</div><div id="shortMemoryList" style="max-height:180px;overflow-y:auto;font-size:12px"><div class="empty-state">输入群ID后点击查看</div></div></div>
+          <div><div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px">长期记忆</div><div id="longMemoryList" style="max-height:180px;overflow-y:auto;font-size:12px"><div class="empty-state">--</div></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="page" id="page-config">
+      <div class="page-title">配置管理</div>
+      <div class="page-subtitle">点“应用”即即时生效并自动写入 bot/.env（重启不丢）；仅 API 地址需重启后端后完全生效</div>
+      <div class="card">
+        <div class="card-title">LLM 参数 <button class="btn btn-sm" onclick="loadConfig()">重新读取当前值</button></div>
+        <div class="config-grid">
+          <div class="config-item"><div class="cfg-label">模型 <span class="readonly">即时切换</span></div><input class="input" id="cfgModel" placeholder="如 deepseek-chat"><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('model', document.getElementById('cfgModel').value.trim())">应用</button></div>
+          <div class="config-item"><div class="cfg-label">API 地址 <span class="readonly">保存后需重启</span></div><input class="input" id="cfgBaseUrl" placeholder="https://api.deepseek.com/v1"><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('base_url', document.getElementById('cfgBaseUrl').value.trim())">应用</button></div>
+          <div class="config-item"><div class="cfg-label">Temperature: <span class="range-value" id="cfgTempVal">0.8</span></div><input type="range" min="0" max="2" step="0.1" id="cfgTemp" oninput="document.getElementById('cfgTempVal').textContent=this.value"><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('temperature', document.getElementById('cfgTemp').value)">应用</button></div>
+          <div class="config-item"><div class="cfg-label">Max Tokens: <span class="range-value" id="cfgMaxVal">1024</span></div><input type="range" min="256" max="4096" step="256" id="cfgMax" oninput="document.getElementById('cfgMaxVal').textContent=this.value"><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('max_tokens', document.getElementById('cfgMax').value)">应用</button></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">视觉识图（群友发图，模型看图回答）</div>
+        <div class="config-grid">
+          <div class="config-item"><div class="cfg-label">识图总开关</div><label class="switch"><input type="checkbox" id="cfgVisionEnabled"><span class="slider"></span></label><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('vision_enabled', document.getElementById('cfgVisionEnabled').checked)">应用</button></div>
+          <div class="config-item"><div class="cfg-label">视觉模型</div><input class="input" id="cfgVisionModel" placeholder="deepseek-v4-flash-vision-exp"><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('vision_model', document.getElementById('cfgVisionModel').value.trim())">应用</button></div>
+          <div class="config-item"><div class="cfg-label">视觉温度: <span class="range-value" id="cfgVisionTempVal">0.7</span></div><input type="range" min="0" max="2" step="0.1" id="cfgVisionTemp" oninput="document.getElementById('cfgVisionTempVal').textContent=this.value"><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('vision_temperature', document.getElementById('cfgVisionTemp').value)">应用</button></div>
+          <div class="config-item"><div class="cfg-label">视觉MaxTokens: <span class="range-value" id="cfgVisionMaxTVal">1024</span></div><input type="range" min="256" max="4096" step="256" id="cfgVisionMaxT" oninput="document.getElementById('cfgVisionMaxTVal').textContent=this.value"><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('vision_max_tokens', document.getElementById('cfgVisionMaxT').value)">应用</button></div>
+          <div class="config-item"><div class="cfg-label">单条最多识图 <span class="range-value" id="cfgVisionImgsVal">2</span> 张</div><input type="range" min="1" max="6" step="1" id="cfgVisionImgs" oninput="document.getElementById('cfgVisionImgsVal').textContent=this.value"><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('vision_max_images', document.getElementById('cfgVisionImgs').value)">应用</button></div>
+          <div class="config-item"><div class="cfg-label">仅@/唤名时才识图（省token；关=任何图都看）</div><label class="switch"><input type="checkbox" id="cfgVisionTrigger"><span class="slider"></span></label><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('vision_require_trigger', document.getElementById('cfgVisionTrigger').checked)">应用</button></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">语音功能（TTS 发语音 + ASR 听语音）<span class="readonly" style="font-size:11px;color:var(--text-muted)">ASR 加载模型后约占 500MB 内存，不用时建议关闭</span></div>
+        <div class="config-grid">
+          <div class="config-item"><div class="cfg-label">TTS 语音合成<span class="readonly">需先启动 GPT-SoVITS API</span></div><label class="switch"><input type="checkbox" id="cfgTtsEnabled"><span class="slider"></span></label><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('tts_enabled', document.getElementById('cfgTtsEnabled').checked)">应用</button></div>
+          <div class="config-item"><div class="cfg-label">TTS 触发模式</div><select class="input" id="cfgTtsTrigger" style="width:140px"><option value="on_demand">按需（明确要求才发语音）</option><option value="always">总是（每条都发语音）</option></select><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('tts_trigger_mode', document.getElementById('cfgTtsTrigger').value)">应用</button></div>
+          <div class="config-item"><div class="cfg-label">TTS 合成引擎（Provider）</div><select class="input" id="cfgTtsProvider" style="width:220px"><option value="local">本地 GPT-SoVITS（自定义模型，CPU慢）</option><option value="minimax">Minimax 云端（国内可访问，语音克隆，推荐）</option><option value="fish">Fish Audio 云端（语音克隆，国内需代理）</option><option value="volc">火山引擎云端（预设音色，稳定）</option></select><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('tts_provider', document.getElementById('cfgTtsProvider').value)">应用</button></div>
+          <div class="config-item" id="minimaxConfig" style="display:none"><div class="cfg-label">Minimax Group ID</div><input type="text" class="input" id="cfgMinimaxGroupId" style="width:180px" placeholder="Group ID"><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('tts_minimax_group_id', document.getElementById('cfgMinimaxGroupId').value)">应用</button><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">注册：minimaxi.com → 控制台 → 账户管理 → 开发者信息</div></div>
+          <div class="config-item" id="minimaxKeyConfig" style="display:none"><div class="cfg-label">Minimax API Key</div><input type="password" class="input" id="cfgMinimaxKey" style="width:220px" placeholder="eyJhbGciOi..."><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('tts_minimax_api_key', document.getElementById('cfgMinimaxKey').value)">应用</button></div>
+          <div class="config-item" id="minimaxVoiceConfig" style="display:none"><div class="cfg-label">Minimax 克隆音色 ID</div><input type="text" class="input" id="cfgMinimaxVoiceId" style="width:200px" placeholder="custom_voice_v1"><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('tts_minimax_voice_id', document.getElementById('cfgMinimaxVoiceId').value)">应用</button><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">运行 F:\qq_chatbot\minimax_clone_voice.py 克隆音色后填入</div></div>
+          <div class="config-item" id="fishConfig" style="display:none"><div class="cfg-label">Fish Audio API Key</div><input type="password" class="input" id="cfgFishKey" style="width:220px" placeholder="sk-xxx"><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('tts_fish_api_key', document.getElementById('cfgFishKey').value)">应用</button><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">注册：fish.audio，上传参考音频克隆后填 Voice ID</div></div>
+          <div class="config-item" id="fishVoiceConfig" style="display:none"><div class="cfg-label">Fish Audio 克隆音色 ID</div><input type="text" class="input" id="cfgFishVoiceId" style="width:220px" placeholder="留空则用参考音频直接合成"><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('tts_fish_voice_id', document.getElementById('cfgFishVoiceId').value)">应用</button></div>
+          <div class="config-item" id="volcConfig" style="display:none"><div class="cfg-label">火山引擎 App ID</div><input type="text" class="input" id="cfgVolcAppId" style="width:160px" placeholder="App ID"><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('tts_volc_app_id', document.getElementById('cfgVolcAppId').value)">应用</button></div>
+          <div class="config-item" id="volcTokenConfig" style="display:none"><div class="cfg-label">火山引擎 Access Token</div><input type="password" class="input" id="cfgVolcToken" style="width:220px" placeholder="Access Token"><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('tts_volc_access_token', document.getElementById('cfgVolcToken').value)">应用</button></div>
+          <div class="config-item" id="volcVoiceConfig" style="display:none"><div class="cfg-label">火山引擎预设音色</div><select class="input" id="cfgVolcVoice" style="width:200px"><option value="BV115_streaming">古风少御（清冷古风）</option><option value="zh_female_qiaopinv_uranus_bigtts">俏皮女声 2.0（活泼可爱）</option><option value="zh_female_vv_uranus_bigtts">Vivi 2.0（活泼灵动，多情感）</option><option value="BV064_streaming">小萝莉（可爱少女，6种情感）</option><option value="BV104_streaming">温柔淑女（温柔女声）</option></select><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('tts_volc_voice_type', document.getElementById('cfgVolcVoice').value)">应用</button></div>
+          <div class="config-item"><div class="cfg-label">ASR 语音识别（群友发语音转文字）<span class="readonly">首次使用自动下载模型</span></div><label class="switch"><input type="checkbox" id="cfgAsrEnabled"><span class="slider"></span></label><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('asr_enabled', document.getElementById('cfgAsrEnabled').checked)">应用</button></div>
+          <div class="config-item"><div class="cfg-label">ASR 模型大小（越大越准越慢）</div><select class="input" id="cfgAsrModel" style="width:140px"><option value="tiny">tiny（最快，约75MB）</option><option value="base">base（均衡，约150MB）</option><option value="small">small（较准，约500MB）</option></select><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('asr_model_size', document.getElementById('cfgAsrModel').value)">应用</button></div>
+        </div>
+      </div>
+      <div class="card" id="voiceManagerCard">
+        <div class="card-title">音色参考音频管理（情绪→音色映射） <button class="btn btn-sm" onclick="loadVoices()">刷新状态</button></div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:14px">上传不同情绪的参考音频（5~15秒，安静环境，语气鲜明），TTS 会根据情绪判定结果自动选择对应音色合成。某情绪未上传时自动降级为 default。</div>
+        <div id="voiceList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;">
+          <div class="empty-state">加载中...</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">群聊回复策略</div>
+        <div class="config-grid">
+          <div class="config-item"><div class="cfg-label">@机器人时回复</div><label class="switch"><input type="checkbox" id="cfgReplyAt"><span class="slider"></span></label><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('reply_on_at', document.getElementById('cfgReplyAt').checked)">应用</button></div>
+          <div class="config-item"><div class="cfg-label">提及名字时回复</div><label class="switch"><input type="checkbox" id="cfgReplyName"><span class="slider"></span></label><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('reply_on_name', document.getElementById('cfgReplyName').checked)">应用</button></div>
+          <div class="config-item"><div class="cfg-label">随机回复概率: <span class="range-value" id="cfgRandVal">5%</span></div><input type="range" min="0" max="50" step="1" id="cfgRand" oninput="document.getElementById('cfgRandVal').textContent=this.value+'%'"><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('random_reply_probability', document.getElementById('cfgRand').value/100)">应用</button></div>
+          <div class="config-item"><div class="cfg-label">冷却时间: <span class="range-value" id="cfgCoolVal">3s</span></div><input type="range" min="0" max="30" step="1" id="cfgCool" oninput="document.getElementById('cfgCoolVal').textContent=this.value+'s'"><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('reply_cooldown', document.getElementById('cfgCool').value)">应用</button></div>
+          <div class="config-item"><div class="cfg-label">上下文轮数: <span class="range-value" id="cfgCtxVal">10</span></div><input type="range" min="2" max="30" step="1" id="cfgCtx" oninput="document.getElementById('cfgCtxVal').textContent=this.value"><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('context_rounds', document.getElementById('cfgCtx').value)">应用</button></div>
+          <div class="config-item"><div class="cfg-label">单条最大字数: <span class="range-value" id="cfgLenVal">500</span></div><input type="range" min="100" max="2000" step="50" id="cfgLen" oninput="document.getElementById('cfgLenVal').textContent=this.value"><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('max_message_length', document.getElementById('cfgLen').value)">应用</button></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">触发关键词（逗号分隔）</div>
+        <input class="input" id="cfgKeywords" style="margin-bottom:10px">
+        <button class="btn btn-sm btn-primary" onclick="updateConfig('trigger_keywords', document.getElementById('cfgKeywords').value)">应用关键词</button>
+      </div>
+      <div class="card">
+        <div class="card-title">群与用户管理 <span class="readonly" style="font-size:11px;color:var(--text-muted)">应用后即时生效并自动保存</span></div>
+        <div class="config-grid">
+          <div class="config-item"><div class="cfg-label">启用群（留空=全部群生效）</div><input class="input" id="cfgEnabledGroups" placeholder="群号，逗号分隔，留空=全部"><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('enabled_groups', document.getElementById('cfgEnabledGroups').value)">应用</button></div>
+          <div class="config-item"><div class="cfg-label">禁用群</div><input class="input" id="cfgDisabledGroups" placeholder="群号，逗号分隔"><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('disabled_groups', document.getElementById('cfgDisabledGroups').value)">应用</button></div>
+          <div class="config-item"><div class="cfg-label">用户黑名单</div><input class="input" id="cfgBlacklist" placeholder="QQ号，逗号分隔"><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('blacklist_users', document.getElementById('cfgBlacklist').value)">应用</button></div>
+          <div class="config-item"><div class="cfg-label">长期记忆开关</div><label class="switch"><input type="checkbox" id="cfgLongTerm"><span class="slider"></span></label><button class="btn btn-sm" style="margin-top:8px" onclick="updateConfig('enable_long_term_memory', document.getElementById('cfgLongTerm').checked)">应用</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="page" id="page-logs">
+      <div class="page-title">实时日志</div>
+      <div class="page-subtitle">后端运行日志实时推送（WebSocket），支持级别过滤、暂停滚动、清空显示</div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div class="log-toolbar">
+          <div style="display:flex;gap:6px;align-items:center">
+            <span style="font-size:12px;color:var(--text-secondary)">级别:</span>
+            <button class="btn btn-sm log-filter-btn active" data-level="" onclick="setLogFilter('')">全部</button>
+            <button class="btn btn-sm log-filter-btn" data-level="info" onclick="setLogFilter('info')">INFO</button>
+            <button class="btn btn-sm log-filter-btn" data-level="warning" onclick="setLogFilter('warning')">WARN</button>
+            <button class="btn btn-sm log-filter-btn" data-level="error" onclick="setLogFilter('error')">ERROR</button>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span class="badge" id="logTotalCount">0 条</span>
+            <label class="switch" style="margin:0"><input type="checkbox" id="logAutoScroll" checked onchange="logAutoScroll=this.checked"><span class="slider"></span></label>
+            <span style="font-size:11px;color:var(--text-secondary)">自动滚动</span>
+            <button class="btn btn-sm" id="logPauseBtn" onclick="toggleLogPause()">⏸ 暂停</button>
+            <button class="btn btn-sm btn-danger" onclick="clearLogViewer()">清空</button>
+          </div>
+        </div>
+        <div class="log-viewer" id="logViewer"></div>
+        <div class="log-statusbar">
+          <span id="logWsStatus">连接中...</span>
+          <span id="logFilterInfo"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+let authToken = localStorage.getItem('console_token') || '';
+let currentPage = 'dashboard';
+let trendChart = null, modelChart = null, tokenHistoryChart = null;
+let ws = null;
+let logCount = 0;
+let currentPersonality = '';
+let refreshTimer = null;
+async function _respOrThrow(r) {
+  if (r.status === 401) { showLogin(); throw new Error('未授权，请重新登录'); }
+  let body = null;
+  const ct = r.headers.get('content-type') || '';
+  try { body = ct.includes('application/json') ? await r.json() : await r.text(); } catch {}
+  if (!r.ok) {
+    let msg = (body && (body.detail || body.error || body.message))
+      || (typeof body === 'string' && body) || ('HTTP ' + r.status);
+    if (typeof msg !== 'string') msg = JSON.stringify(msg);
+    throw new Error(msg);
+  }
+  return body;
+}
+const API = {
+  async get(path) {
+    const r = await fetch(path, { headers: { 'X-Console-Token': authToken } });
+    return _respOrThrow(r);
+  },
+  async post(path, data) {
+    const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Console-Token': authToken }, body: JSON.stringify(data) });
+    return _respOrThrow(r);
+  },
+  async del(path) {
+    const r = await fetch(path, { method: 'DELETE', headers: { 'X-Console-Token': authToken } });
+    return _respOrThrow(r);
+  }
+};
+function showLogin() { document.getElementById('loginOverlay').style.display = 'flex'; document.getElementById('app').style.display = 'none'; }
+function hideLogin() { document.getElementById('loginOverlay').style.display = 'none'; document.getElementById('app').style.display = 'flex'; }
+async function doLogin() {
+  const token = document.getElementById('loginToken').value.trim();
+  if (!token) return;
+  try {
+    const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }) });
+    if (r.ok) { authToken = token; localStorage.setItem('console_token', token); hideLogin(); initApp(); }
+    else { document.getElementById('loginError').style.display = 'block'; }
+  } catch (e) { document.getElementById('loginError').style.display = 'block'; document.getElementById('loginError').textContent = '连接失败: ' + e.message; }
+}
+document.getElementById('loginToken').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+function switchPage(page) {
+  currentPage = page;
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.page === page));
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === 'page-' + page));
+  if (page === 'dashboard') loadDashboard();
+  if (page === 'status') { loadStatus(); loadProfiles(); }
+  if (page === 'token') { loadTokenHistory(); loadRecentCalls(); }
+  if (page === 'personality') loadPersonalities();
+  if (page === 'config') loadConfig();
+  if (page === 'logs') initLogsPage();
+}
+function toast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast ' + (type||'info') + ' show';
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+async function loadDashboard() {
+  try {
+    const data = await API.get('/api/dashboard');
+    const today = data.today || {};
+    document.getElementById('statCalls').textContent = today.call_count || 0;
+    document.getElementById('statTokens').innerHTML = fmtNum(today.total_tokens || 0) + '<span class="unit">tokens</span>';
+    document.getElementById('statCost').textContent = '¥' + (today.total_cost || 0).toFixed(4);
+    document.getElementById('statLatency').innerHTML = (today.avg_latency_ms || 0) + '<span class="unit">ms</span>';
+    const total = data.total || {};
+    document.getElementById('totalCalls').textContent = fmtNum(total.call_count || 0);
+    document.getElementById('totalTokens').textContent = fmtNum(total.total_tokens || 0);
+    document.getElementById('totalCost').textContent = '¥' + (total.total_cost || 0).toFixed(2);
+    document.getElementById('uptime').textContent = fmtUptime(data.uptime || 0);
+    document.getElementById('sidebarModel').textContent = '模型: ' + (data.llm?.model || '--');
+    document.getElementById('sidebarPersonality').textContent = data.personality || '--';
+    const hist = await API.get('/api/token/history?days=7');
+    renderTrendChart(hist);
+    renderModelChart(today.by_model || []);
+  } catch (e) { console.error(e); }
+}
+function renderTrendChart(data) {
+  const ctx = document.getElementById('trendChart'); if (!ctx) return;
+  const labels = data.map(d => d.date.slice(5));
+  const tokens = data.map(d => d.total_tokens);
+  const costs = data.map(d => d.total_cost);
+  if (trendChart) trendChart.destroy();
+  trendChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label: 'Tokens', data: tokens, backgroundColor: 'rgba(108,140,255,0.6)', borderRadius: 4, yAxisID: 'y' },
+      { label: '费用(¥)', data: costs, type: 'line', borderColor: '#fbbf24', backgroundColor: 'rgba(251,191,36,0.1)', tension: 0.3, yAxisID: 'y1', fill: true },
+    ]},
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#9ca0b0', font: { size: 11 } } } },
+      scales: {
+        x: { ticks: { color: '#6b7080', font: { size: 10 } }, grid: { color: '#2d3142' } },
+        y: { ticks: { color: '#6b7080', font: { size: 10 } }, grid: { color: '#2d3142' }, position: 'left' },
+        y1: { ticks: { color: '#6b7080', font: { size: 10 } }, grid: { display: false }, position: 'right' },
+      }
+    }
+  });
+}
+function renderModelChart(models) {
+  const ctx = document.getElementById('modelChart'); if (!ctx) return;
+  if (models.length === 0) { if (modelChart) modelChart.destroy(); ctx.parentElement.innerHTML = '<div class="empty-state">今日暂无调用</div>'; return; }
+  const colors = ['#6c8cff', '#a78bfa', '#22d3ee', '#4ade80', '#fbbf24'];
+  if (modelChart) modelChart.destroy();
+  modelChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels: models.map(m => m.model), datasets: [{ data: models.map(m => m.tokens), backgroundColor: colors, borderWidth: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#9ca0b0', font: { size: 11 }, padding: 12 } } }, cutout: '60%' }
+  });
+}
+async function loadTokenHistory() {
+  const days = document.getElementById('tokenDays').value;
+  const data = await API.get('/api/token/history?days=' + days);
+  const ctx = document.getElementById('tokenHistoryChart'); if (!ctx) return;
+  const labels = data.map(d => d.date.slice(5));
+  if (tokenHistoryChart) tokenHistoryChart.destroy();
+  tokenHistoryChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets: [
+      { label: '输入 Tokens', data: data.map(d => d.prompt_tokens), borderColor: '#6c8cff', backgroundColor: 'rgba(108,140,255,0.1)', fill: true, tension: 0.3 },
+      { label: '输出 Tokens', data: data.map(d => d.completion_tokens), borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.1)', fill: true, tension: 0.3 },
+      { label: '费用(¥)', data: data.map(d => d.total_cost), borderColor: '#fbbf24', borderDash: [5,5], tension: 0.3, yAxisID: 'y1' },
+    ]},
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#9ca0b0', font: { size: 11 } } } },
+      scales: {
+        x: { ticks: { color: '#6b7080', font: { size: 10 } }, grid: { color: '#2d3142' } },
+        y: { ticks: { color: '#6b7080', font: { size: 10 } }, grid: { color: '#2d3142' } },
+        y1: { ticks: { color: '#6b7080', font: { size: 10 } }, grid: { display: false }, position: 'right' },
+      }
+    }
+  });
+}
+async function loadRecentCalls() {
+  const data = await API.get('/api/token/recent?limit=50');
+  const tbody = document.getElementById('recentCallsBody');
+  if (!data.length) { tbody.innerHTML = '<tr><td colspan="9" class="empty-state">暂无调用记录</td></tr>'; return; }
+  tbody.innerHTML = data.map(r => '<tr><td>'+r.time_str+'</td><td><span class="tag tag-blue">'+r.model+'</span></td><td>'+(r.group_id||'-')+'</td><td>'+(r.user_id||'-')+'</td><td>'+fmtNum(r.prompt_tokens)+'</td><td>'+fmtNum(r.completion_tokens)+'</td><td><strong>'+fmtNum(r.total_tokens)+'</strong></td><td>'+r.latency_ms+'ms</td><td style="color:var(--warning)">¥'+r.cost.toFixed(4)+'</td></tr>').join('');
+}
+async function loadPersonalities() {
+  const data = await API.get('/api/personalities');
+  const list = document.getElementById('personalityList');
+  if (!data.length) { list.innerHTML = '<div class="empty-state">暂无人格文件</div>'; return; }
+  list.innerHTML = data.map(p => '<div class="personality-card '+(p.active?'active':'')+'" onclick="openPersonality(\''+p.file+'\')">'+(p.active?'<span class="active-badge tag tag-green">使用中</span>':'')+'<div class="p-name">'+p.display_name+'</div><div class="p-file">'+p.file+'.yaml</div><div class="p-traits">'+(p.traits||[]).map(t=>'<span class="tag tag-purple">'+t+'</span>').join('')+'</div></div>').join('');
+}
+async function openPersonality(name) {
+  currentPersonality = name;
+  document.getElementById('editorCard').style.display = 'block';
+  document.getElementById('editingName').textContent = name;
+  const data = await API.get('/api/personality/' + name);
+  document.getElementById('personalityEditor').value = data.content;
+  document.getElementById('personalityPreview').textContent = data.preview;
+  document.getElementById('previewLen').textContent = '(' + data.preview_length + ' 字)';
+}
+async function createPersonality() {
+  const name = document.getElementById('newPersonalityName').value.trim();
+  if (!name) { toast('请输入人格文件名', 'error'); return; }
+  if (!/^[a-zA-Z0-9_-]+$/.test(name)) { toast('文件名只能包含字母数字下划线', 'error'); return; }
+  const template = '# 人格: '+name+'\nbasic:\n  name: "'+name+'"\n  gender: "女"\n  age: 18\n\npersonality_traits:\n  - "温柔"\n  - "活泼"\n\nspeech_style:\n  tone: "亲切自然"\n  sentence_length: "中等"\n  use_emoji: true\n  emoji_frequency: "适中"\n  common_emojis: ["😊", "✨"]\n  catchphrases: []\n  avoid_words: ["作为AI", "作为一个人工智能"]\n\nbackground_story: |\n  你是'+name+'。\n\nknowledge:\n  expertise: ["日常聊天"]\n  limitations: "遇到不懂的就说不知道。"\n  opinion_on: {}\n\nreply_behavior:\n  default_length: "2-4句话"\n  max_length: 200\n  ask_clarification: true\n  proactive_topics: []\n  rejection_style: "委婉"\n\nsocial:\n  relationship_with_group: "把群友当朋友"\n  how_to_address_others: "按昵称称呼"\n  group_dynamics: "活跃但不抢话"\n\nsafety:\n  refuse_political: true\n  refuse_violence: true\n  refuse_personal_info: true\n  refuse_harmful: true\n  safe_response_template: "这个话题不太方便聊呢~"\n';
+  await API.post('/api/personality/' + name, { content: template });
+  toast('人格已创建', 'success');
+  document.getElementById('newPersonalityName').value = '';
+  loadPersonalities(); openPersonality(name);
+}
+function fmtYamlErr(msg) {
+  if (/YAML|scanning|expected|mapping|unicode string/i.test(msg)) {
+    const m = msg.match(/line (\d+), column (\d+)/);
+    let hint = 'YAML 格式不合法：多半是多行文本块（如「background_story: |」）下面某一行行首没有用两个半角空格缩进，或“键: 值”的冒号后漏了空格。';
+    if (m) hint += `问题大约在第 ${m[1]} 行第 ${m[2]} 列，请把这一段每行行首都对齐成两个空格。`;
+    return hint + '（原始信息：' + msg + '）';
+  }
+  return msg;
+}
+async function savePersonality() {
+  if (!currentPersonality) return;
+  const content = document.getElementById('personalityEditor').value;
+  try { const r = await API.post('/api/personality/' + currentPersonality, { content });
+    toast(r.reloaded ? '保存成功，线上人格已即时重载' : '保存成功', 'success'); loadPersonalities(); }
+  catch (e) { toast('保存失败：' + fmtYamlErr(e.message), 'error'); }
+}
+async function previewPersonality() {
+  if (!currentPersonality) return;
+  const content = document.getElementById('personalityEditor').value;
+  try {
+    await API.post('/api/personality/' + currentPersonality, { content });
+    const data = await API.get('/api/personality/' + currentPersonality);
+    document.getElementById('personalityPreview').textContent = data.preview;
+    document.getElementById('previewLen').textContent = '(' + data.preview_length + ' 字)';
+    toast('预览已更新', 'success');
+  } catch (e) { toast('预览失败：' + fmtYamlErr(e.message), 'error'); }
+}
+async function activatePersonality() {
+  if (!currentPersonality) return;
+  if (!confirm('确定要切换到人格「'+currentPersonality+'」吗？')) return;
+  try { const r = await API.post('/api/personality/' + currentPersonality + '/activate', {}); toast('已切换并保存为默认: ' + r.active_name, 'success'); loadPersonalities(); }
+  catch (e) { toast('切换失败: ' + e.message, 'error'); }
+}
+async function deletePersonality() {
+  if (!currentPersonality) return;
+  if (currentPersonality === 'default') { toast('不能删除默认人格', 'error'); return; }
+  if (!confirm('确定删除人格「'+currentPersonality+'」？此操作不可恢复！')) return;
+  try { await API.del('/api/personality/' + currentPersonality); toast('已删除', 'success'); document.getElementById('editorCard').style.display = 'none'; currentPersonality = ''; loadPersonalities(); }
+  catch (e) { toast('删除失败', 'error'); }
+}
+async function sendDebug() {
+  const groupId = document.getElementById('debugGroupId').value.trim();
+  const userName = document.getElementById('debugUserName').value.trim();
+  const message = document.getElementById('debugMessage').value.trim();
+  if (!groupId || !message) { toast('请填写群ID和消息', 'error'); return; }
+  const btn = document.getElementById('debugSendBtn');
+  btn.disabled = true; btn.textContent = '发送中...';
+  document.getElementById('debugResult').style.display = 'none';
+  try {
+    const start = Date.now();
+    const r = await API.post('/api/debug/send', { group_id: groupId, user_id: '99999', user_name: userName, message, model: 'auto' });
+    const elapsed = Date.now() - start;
+    document.getElementById('debugResult').style.display = 'block';
+    document.getElementById('debugReply').textContent = r.reply;
+    document.getElementById('debugMeta').textContent = '模型: ' + (r.used_model||'-') + '（' + (r.route||'-') + '）| 内部延迟: ' + r.latency_ms + 'ms | 端到端: ' + elapsed + 'ms';
+    const rw = document.getElementById('debugReasoningWrap');
+    if (r.reasoning && r.reasoning.trim()) {
+      rw.style.display = 'block';
+      document.getElementById('debugReasoning').textContent = r.reasoning;
+    } else { rw.style.display = 'none'; }
+    document.getElementById('debugMessage').value = '';
+  } catch (e) { toast('发送失败: ' + e.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = '发送'; }
+}
+// ===== 实时日志页（独立日志查看器） =====
+let logViewerPaused = false;
+let logViewerFilter = '';
+let logViewerAutoScroll = true;
+let logViewerTotal = 0;
+let logViewerWs = null;
+
+function appendLog(level, msg, time) {
+  // 调试页日志容器（原有逻辑）
+  const container = document.getElementById('logContainer');
+  if (container) {
+    const line = document.createElement('div');
+    line.className = 'log-line';
+    line.innerHTML = '<span class="log-time">'+(time||new Date().toLocaleTimeString())+'</span><span class="log-level '+level+'">'+level.toUpperCase()+'</span><span class="log-msg">'+escapeHtml(msg)+'</span>';
+    container.appendChild(line); container.scrollTop = container.scrollHeight;
+    logCount++; document.getElementById('logCount').textContent = logCount + ' 条';
+    while (container.children.length > 500) container.removeChild(container.firstChild);
+  }
+  // 独立实时日志页
+  appendLogViewer(level, msg, time);
+}
+
+function appendLogViewer(level, msg, time) {
+  const viewer = document.getElementById('logViewer');
+  if (!viewer) return;
+  // 级别过滤
+  if (logViewerFilter && level !== logViewerFilter) return;
+  logViewerTotal++;
+  document.getElementById('logTotalCount').textContent = logViewerTotal + ' 条';
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.dataset.level = level;
+  line.innerHTML = '<span class="log-time">'+(time||new Date().toLocaleTimeString())+'</span><span class="log-level '+level+'">'+level.toUpperCase()+'</span><span class="log-msg">'+escapeHtml(msg)+'</span>';
+  viewer.appendChild(line);
+  // 最多保留 2000 条
+  while (viewer.children.length > 2000) viewer.removeChild(viewer.firstChild);
+  // 自动滚动
+  if (logViewerAutoScroll && !logViewerPaused) {
+    viewer.scrollTop = viewer.scrollHeight;
+  }
+}
+
+function setLogFilter(level) {
+  logViewerFilter = level;
+  document.querySelectorAll('.log-filter-btn').forEach(b => b.classList.toggle('active', b.dataset.level === level));
+  // 重新过滤显示
+  const viewer = document.getElementById('logViewer');
+  if (!viewer) return;
+  let visible = 0;
+  viewer.querySelectorAll('.log-line').forEach(line => {
+    const show = !level || line.dataset.level === level;
+    line.style.display = show ? 'flex' : 'none';
+    if (show) visible++;
+  });
+  document.getElementById('logFilterInfo').textContent = level ? ('过滤: ' + level.toUpperCase() + ' (' + visible + ' 条)') : '';
+}
+
+function toggleLogPause() {
+  logViewerPaused = !logViewerPaused;
+  const btn = document.getElementById('logPauseBtn');
+  btn.textContent = logViewerPaused ? '▶ 继续' : '⏸ 暂停';
+  btn.style.background = logViewerPaused ? 'var(--warning)' : '';
+  btn.style.color = logViewerPaused ? '#000' : '';
+  document.getElementById('logWsStatus').textContent = logViewerPaused ? '已暂停接收' : '运行中';
+}
+
+function clearLogViewer() {
+  const viewer = document.getElementById('logViewer');
+  if (viewer) viewer.innerHTML = '';
+  logViewerTotal = 0;
+  document.getElementById('logTotalCount').textContent = '0 条';
+}
+
+async function initLogsPage() {
+  const viewer = document.getElementById('logViewer');
+  if (!viewer) return;
+  // 如果已有内容，不重复加载
+  if (viewer.children.length > 0) return;
+  try {
+    // 加载历史日志
+    const data = await API.get('/api/logs?limit=300');
+    if (data.logs && data.logs.length) {
+      data.logs.forEach(log => appendLogViewer(log.level, log.message, log.time));
+      document.getElementById('logWsStatus').textContent = '已加载 ' + data.logs.length + ' 条历史日志，实时监听中...';
+    } else {
+      document.getElementById('logWsStatus').textContent = '实时监听中...';
+    }
+  } catch (e) {
+    document.getElementById('logWsStatus').textContent = '历史日志加载失败: ' + e.message;
+  }
+  // 确保 WebSocket 已连接（复用调试页的 connectWS）
+  if (!ws || ws.readyState !== 1) connectWS();
+}
+
+function clearLogDisplay() { document.getElementById('logContainer').innerHTML = ''; logCount = 0; document.getElementById('logCount').textContent = '0 条'; }
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(proto+'://'+location.host+'/ws/logs');
+  ws.onopen = () => { ws.send(JSON.stringify({ token: authToken })); appendLog('info', '日志连接已建立'); };
+  ws.onmessage = (e) => { try { const d = JSON.parse(e.data); appendLog(d.level, d.message, d.time); } catch {} };
+  ws.onclose = () => { appendLog('warn', '日志连接断开，5秒后重连...'); setTimeout(connectWS, 5000); };
+  ws.onerror = () => {};
+}
+async function loadMemory() {
+  const gid = document.getElementById('memoryGroupId').value.trim();
+  if (!gid) return;
+  try {
+    const short = await API.get('/api/debug/memory/' + gid);
+    const shortEl = document.getElementById('shortMemoryList');
+    if (!short.length) { shortEl.innerHTML = '<div class="empty-state">无短期记忆</div>'; }
+    else { shortEl.innerHTML = short.map(m => '<div style="padding:4px 0;border-bottom:1px solid var(--border)"><span class="tag '+(m.role==='user'?'tag-blue':'tag-green')+'">'+(m.role==='user'?'用户':'AI')+'</span><span style="margin-left:6px;color:var(--text-secondary)">'+escapeHtml(m.content.slice(0,120))+(m.content.length>120?'...':'')+'</span></div>').join(''); }
+    const long = await API.get('/api/debug/long_memory/' + gid + '?limit=10');
+    const longEl = document.getElementById('longMemoryList');
+    if (!long.length) { longEl.innerHTML = '<div class="empty-state">无长期记忆</div>'; }
+    else { longEl.innerHTML = long.map(m => '<div style="padding:4px 0;border-bottom:1px solid var(--border)"><span class="tag tag-yellow">ID:'+m.id+'</span><span style="margin-left:6px;color:var(--text-secondary)">'+escapeHtml(m.content)+'</span></div>').join(''); }
+  } catch (e) { toast('加载失败', 'error'); }
+}
+async function clearMemory() {
+  const gid = document.getElementById('memoryGroupId').value.trim();
+  if (!gid) return;
+  if (!confirm('确定清空群 '+gid+' 的所有记忆？')) return;
+  await API.post('/api/debug/memory/clear', { group_id: gid, clear_long_term: true });
+  toast('记忆已清空', 'success'); loadMemory();
+}
+async function loadConfig() {
+  const cfg = await API.get('/api/config');
+  document.getElementById('cfgModel').value = cfg.model || '';
+  document.getElementById('cfgBaseUrl').value = cfg.base_url || '';
+  document.getElementById('cfgTemp').value = cfg.temperature ?? 0.8;
+  document.getElementById('cfgTempVal').textContent = cfg.temperature ?? 0.8;
+  document.getElementById('cfgMax').value = cfg.max_tokens ?? 1024;
+  document.getElementById('cfgMaxVal').textContent = cfg.max_tokens ?? 1024;
+  document.getElementById('cfgReplyAt').checked = cfg.reply_on_at;
+  document.getElementById('cfgReplyName').checked = cfg.reply_on_name;
+  document.getElementById('cfgRand').value = (cfg.random_reply_probability ?? 0.05) * 100;
+  document.getElementById('cfgRandVal').textContent = Math.round((cfg.random_reply_probability ?? 0.05) * 100) + '%';
+  document.getElementById('cfgCool').value = cfg.reply_cooldown ?? 3;
+  document.getElementById('cfgCoolVal').textContent = (cfg.reply_cooldown ?? 3) + 's';
+  document.getElementById('cfgCtx').value = cfg.context_rounds ?? 10;
+  document.getElementById('cfgCtxVal').textContent = cfg.context_rounds ?? 10;
+  document.getElementById('cfgLen').value = cfg.max_message_length ?? 500;
+  document.getElementById('cfgLenVal').textContent = cfg.max_message_length ?? 500;
+  document.getElementById('cfgKeywords').value = (cfg.trigger_keywords || []).join(', ');
+  document.getElementById('cfgEnabledGroups').value = (cfg.enabled_groups || []).join(', ');
+  document.getElementById('cfgDisabledGroups').value = (cfg.disabled_groups || []).join(', ');
+  document.getElementById('cfgBlacklist').value = (cfg.blacklist_users || []).join(', ');
+  document.getElementById('cfgLongTerm').checked = !!cfg.enable_long_term_memory;
+  document.getElementById('cfgVisionEnabled').checked = !!cfg.vision_enabled;
+  document.getElementById('cfgVisionModel').value = cfg.vision_model || '';
+  document.getElementById('cfgVisionTemp').value = cfg.vision_temperature ?? 0.7;
+  document.getElementById('cfgVisionTempVal').textContent = cfg.vision_temperature ?? 0.7;
+  document.getElementById('cfgVisionMaxT').value = cfg.vision_max_tokens ?? 1024;
+  document.getElementById('cfgVisionMaxTVal').textContent = cfg.vision_max_tokens ?? 1024;
+  document.getElementById('cfgVisionImgs').value = cfg.vision_max_images ?? 2;
+  document.getElementById('cfgVisionImgsVal').textContent = cfg.vision_max_images ?? 2;
+  document.getElementById('cfgVisionTrigger').checked = !!cfg.vision_require_trigger;
+  // 语音功能
+  document.getElementById('cfgTtsEnabled').checked = !!cfg.tts_enabled;
+  document.getElementById('cfgTtsTrigger').value = cfg.tts_trigger_mode || 'on_demand';
+  document.getElementById('cfgTtsProvider').value = cfg.tts_provider || 'local';
+  document.getElementById('cfgMinimaxGroupId').value = cfg.tts_minimax_group_id || '';
+  document.getElementById('cfgMinimaxKey').value = cfg.tts_minimax_api_key || '';
+  document.getElementById('cfgMinimaxVoiceId').value = cfg.tts_minimax_voice_id || '';
+  document.getElementById('cfgFishKey').value = cfg.tts_fish_api_key || '';
+  document.getElementById('cfgFishVoiceId').value = cfg.tts_fish_voice_id || '';
+  document.getElementById('cfgVolcAppId').value = cfg.tts_volc_app_id || '';
+  document.getElementById('cfgVolcToken').value = cfg.tts_volc_access_token || '';
+  document.getElementById('cfgVolcVoice').value = cfg.tts_volc_voice_type || 'BV115_streaming';
+  // Provider 切换显隐
+  const provider = cfg.tts_provider || 'local';
+  document.getElementById('minimaxConfig').style.display = provider === 'minimax' ? '' : 'none';
+  document.getElementById('minimaxKeyConfig').style.display = provider === 'minimax' ? '' : 'none';
+  document.getElementById('minimaxVoiceConfig').style.display = provider === 'minimax' ? '' : 'none';
+  document.getElementById('fishConfig').style.display = provider === 'fish' ? '' : 'none';
+  document.getElementById('fishVoiceConfig').style.display = provider === 'fish' ? '' : 'none';
+  document.getElementById('volcConfig').style.display = provider === 'volc' ? '' : 'none';
+  document.getElementById('volcTokenConfig').style.display = provider === 'volc' ? '' : 'none';
+  document.getElementById('volcVoiceConfig').style.display = provider === 'volc' ? '' : 'none';
+  document.getElementById('cfgAsrEnabled').checked = !!cfg.asr_enabled;
+  document.getElementById('cfgAsrModel').value = cfg.asr_model_size || 'base';
+  // 加载音色管理列表
+  loadVoices();
+}
+async function updateConfig(key, value) {
+  try {
+    const r = await API.post('/api/config/update', { key, value });
+    if (r.needs_restart) toast('已保存：' + key + '（重启后端后完全生效）', 'info');
+    else toast('已保存并即时生效：' + key, r.persisted === false ? 'error' : 'success');
+    if (currentPage === 'config') loadConfig();
+  } catch (e) { toast('更新失败：' + e.message, 'error'); }
+}
+// ============ 音色管理 ============
+const EMOTION_LABELS = {
+  default: '默认', happy: '开心', excited: '兴奋', sad: '悲伤', angry: '生气',
+  calm: '平静', coquettish: '撒娇', surprised: '惊讶', thinking: '思考',
+  gentle: '温柔', playful: '调皮',
+};
+const EMOTION_ORDER = ['default', 'happy', 'excited', 'sad', 'angry', 'calm', 'coquettish', 'surprised', 'thinking', 'gentle', 'playful'];
+
+async function loadVoices() {
+  const container = document.getElementById('voiceList');
+  if (!container) return;
+  try {
+    const data = await API.get('/api/voices');
+    const voices = data.voices || {};
+    let html = '';
+    for (const emo of EMOTION_ORDER) {
+      const v = voices[emo] || {};
+      const exists = v.file_exists;
+      const size = v.file_size ? (v.file_size / 1024).toFixed(0) + 'KB' : '';
+      const statusColor = exists ? '#4ade80' : '#6b7080';
+      const statusText = exists ? '已上传' : '未上传';
+      html += '<div style="background:var(--bg-tertiary);border:1px solid var(--border);border-radius:8px;padding:12px;">'
+        + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'
+        + '<span style="font-weight:600;font-size:13px;">' + EMOTION_LABELS[emo] + ' <span style="color:var(--text-muted);font-size:11px;font-weight:400;">' + emo + '</span></span>'
+        + '<span style="font-size:11px;color:' + statusColor + ';">● ' + statusText + (size ? ' ' + size : '') + '</span>'
+        + '</div>'
+        + '<div style="margin-bottom:6px;"><input class="input" id="voiceRef_' + emo + '" placeholder="参考文本（可选，和音频里说的一致）" style="width:100%;font-size:11px;padding:6px 8px;" value="' + escapeHtml(v.ref_text || '') + '"></div>'
+        + '<div style="display:flex;gap:6px;">'
+        + '<input type="file" id="voiceFile_' + emo + '" accept=".wav,.mp3,.ogg" style="display:none" onchange="uploadVoiceFile(\'' + emo + '\')">'
+        + '<button class="btn btn-sm" style="flex:1" onclick="document.getElementById(\'voiceFile_' + emo + '\').click()">选择音频</button>'
+        + '</div>'
+        + '</div>';
+    }
+    container.innerHTML = html;
+  } catch (e) {
+    container.innerHTML = '<div class="empty-state">加载失败: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+async function uploadVoiceFile(emotion) {
+  const fileInput = document.getElementById('voiceFile_' + emotion);
+  if (!fileInput || !fileInput.files || !fileInput.files[0]) return;
+  const file = fileInput.files[0];
+  const refText = document.getElementById('voiceRef_' + emotion)?.value || '';
+  try {
+    const formData = new FormData();
+    formData.append('emotion', emotion);
+    formData.append('audio_file', file);
+    formData.append('ref_text', refText);
+    const r = await fetch('/api/voices/upload', {
+      method: 'POST',
+      headers: { 'X-Console-Token': authToken },
+      body: formData,
+    });
+    const result = await r.json();
+    if (result.success) {
+      toast('上传成功: ' + EMOTION_LABELS[emotion] + ' (' + (result.file_size / 1024).toFixed(0) + 'KB)', 'success');
+      loadVoices();
+    } else {
+      toast('上传失败: ' + (result.error || '未知错误'), 'error');
+    }
+  } catch (e) {
+    toast('上传失败: ' + e.message, 'error');
+  }
+}
+// ============ 运行状态页 ============
+const WD_BASE = 'http://127.0.0.1:18081';
+let watchdogOnline = false;
+async function wdPost(act) {
+  const r = await fetch(WD_BASE + '/' + act, { method: 'POST', signal: AbortSignal.timeout(30000) });
+  return r.json();
+}
+async function wdStatus() {
+  try { const r = await fetch(WD_BASE + '/status', { signal: AbortSignal.timeout(2000) }); return await r.json(); }
+  catch (e) { return null; }
+}
+function svcRow(name, ok, detail) {
+  const dot = ok === true ? '#4ade80' : (ok === false ? '#f87171' : '#fbbf24');
+  const txt = ok === true ? '就绪' : (ok === false ? '异常' : '未知');
+  return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">'
+    + '<span style="width:10px;height:10px;border-radius:50%;background:' + dot + ';box-shadow:0 0 8px ' + dot + ';flex:none"></span>'
+    + '<span style="width:110px;color:var(--text-secondary);flex:none">' + name + '</span>'
+    + '<span style="flex:1;color:var(--text-primary);font-size:12px">' + escapeHtml(detail || txt) + '</span></div>';
+}
+async function loadStatus() {
+  let d; try { d = await API.get('/api/status'); } catch (e) { return; }
+  const wd = await wdStatus(); watchdogOnline = !!wd;
+  const qq = d.qq || {}, ds = d.deepseek || {}, db = d.database || {}, rt = d.runtime || {};
+  const rows = [];
+  rows.push(svcRow('后端服务', true, 'PID ' + (d.backend?.pid ?? '--') + '，已运行 ' + fmtUptime(d.backend?.uptime || 0)));
+  rows.push(svcRow('QQ / NapCat', qq.connected === true, qq.connected ? ('已连接 ' + qq.self_id + ' ' + (qq.nickname || '') + '，' + (qq.group_count ?? 0) + ' 个群') : '未连接（NapCat 未启动或小号未登录）'));
+  const dsOk = ds.ok === true || ds.ok === false ? ds.ok : null;
+  rows.push(svcRow('DeepSeek API', dsOk, ds.ok === true ? ('正常 ' + (ds.latency_ms ?? '?') + 'ms，' + (ds.chat_model || '') + ' / ' + (ds.reasoner_model || '')) : (ds.ok === false ? ('异常：' + (ds.error || '')) : '检测中…')));
+  rows.push(svcRow('长期记忆库', db.long_term >= 0, db.long_term >= 0 ? (db.long_term + ' 条记忆') : '不可读写'));
+  rows.push(svcRow('群友画像库', db.profiles >= 0, db.profiles >= 0 ? (db.profiles + ' 位群友') : '未启用/不可用'));
+  rows.push(svcRow('当前人格', true, d.personality || '--'));
+  document.getElementById('svcList').innerHTML = rows.join('');
+  const en = rt.reply_enabled !== false;
+  const rb = document.getElementById('replyStateBadge');
+  rb.textContent = en ? '运行中' : '已暂停'; rb.className = 'tag ' + (en ? 'tag-green' : 'tag-yellow');
+  document.getElementById('backendStateBadge').textContent = '在线';
+  document.getElementById('backendStateBadge').className = 'tag tag-green';
+  const wb = document.getElementById('watchdogBadge');
+  wb.textContent = wd ? ('在线' + (wd.backend_alive ? '' : '（后端未运行）')) : '离线';
+  wb.className = 'tag ' + (wd ? 'tag-green' : 'tag-yellow');
+  document.getElementById('reasonMode').value = rt.reason_mode || 'auto';
+  const t = d.today || {};
+  document.getElementById('stCalls').textContent = t.call_count || 0;
+  document.getElementById('stTokens').textContent = fmtNum(t.total_tokens || 0);
+  document.getElementById('stLatency').textContent = (t.avg_latency_ms || 0) + 'ms';
+  document.getElementById('stUptime').textContent = fmtUptime(d.backend?.uptime || 0);
+}
+async function ctrlReply(act) {
+  try { const r = await API.post('/api/control', { action: act }); toast(r.message || '已操作', 'success'); loadStatus(); }
+  catch (e) { toast('操作失败: ' + e.message, 'error'); }
+}
+async function setReasonMode() {
+  const v = document.getElementById('reasonMode').value;
+  try { await API.post('/api/control', { action: 'set_reason_mode', value: v }); toast('推理模式 → ' + v, 'success'); }
+  catch (e) { toast('设置失败', 'error'); }
+}
+async function testDeepSeek() {
+  const el = document.getElementById('dsTestResult'); el.textContent = '测试中…';
+  try {
+    const r = await API.post('/api/llm/test', {});
+    el.textContent = r.ok ? ('✓ 连通 ' + r.latency_ms + 'ms，模型: ' + (r.models || []).join(', ')) : ('✗ ' + r.error);
+    el.style.color = r.ok ? 'var(--success)' : 'var(--danger)';
+  } catch (e) { el.textContent = '✗ ' + e.message; el.style.color = 'var(--danger)'; }
+}
+async function procStart() {
+  if (!watchdogOnline) { toast('守护进程未运行，请在桌面双击 start.bat all', 'error'); return; }
+  toast('正在拉起后端，约需 10-20 秒…', 'info');
+  try { const r = await wdPost('start'); toast(r.ok ? '后端已拉起' : '已启动但端口暂未就绪，请稍候刷新', r.ok ? 'success' : 'error'); setTimeout(loadStatus, 4000); }
+  catch (e) { toast('拉起失败: ' + e.message, 'error'); }
+}
+async function procStop() {
+  if (!watchdogOnline) { toast('守护进程未运行', 'error'); return; }
+  if (!confirm('确定结束后端进程吗？结束后机器人停止处理消息（NapCat/QQ 保留），可用“拉起进程”恢复。')) return;
+  try { await wdPost('stop'); toast('后端已结束', 'success'); setTimeout(loadStatus, 2000); }
+  catch (e) { toast('结束失败', 'error'); }
+}
+async function procRestart() {
+  if (!watchdogOnline) { toast('守护进程未运行', 'error'); return; }
+  if (!confirm('重启后端？约 10-20 秒恢复。')) return;
+  toast('重启中…', 'info');
+  try { const r = await wdPost('restart'); toast(r.ok ? '后端已重启' : '重启异常，请刷新查看', r.ok ? 'success' : 'error'); setTimeout(loadStatus, 5000); }
+  catch (e) { toast('重启失败', 'error'); }
+}
+async function loadProfiles() {
+  const gid = document.getElementById('profileGroupId').value.trim();
+  const tb = document.getElementById('profilesBody');
+  if (!gid || !tb) return;
+  try {
+    const d = await API.get('/api/profiles?group_id=' + gid);
+    if (!d.profiles || !d.profiles.length) { tb.innerHTML = '<tr><td colspan="10" class="empty-state">该群暂无画像（群友发言后会自动建立）</td></tr>'; return; }
+    tb.innerHTML = d.profiles.map(p => '<tr>'
+      + '<td>' + p.user_id + '</td>'
+      + '<td>' + escapeHtml(p.display_name || p.qq_nickname || '') + '</td>'
+      + '<td>' + escapeHtml(p.gender || '') + '</td>'
+      + '<td>' + escapeHtml(p.age || '') + '</td>'
+      + '<td>' + escapeHtml(p.occupation || '') + '</td>'
+      + '<td>' + escapeHtml(p.location || '') + '</td>'
+      + '<td>' + (p.hobbies || []).map(h => '<span class="tag tag-purple">' + escapeHtml(h) + '</span>').join(' ') + '</td>'
+      + '<td style="max-width:220px">' + escapeHtml(p.summary || '') + '</td>'
+      + '<td>' + (p.msg_count || 0) + '</td>'
+      + '<td><button class="btn btn-sm" onclick="editProfile(\'' + p.user_id + '\')">改</button> <button class="btn btn-sm btn-danger" onclick="delProfile(\'' + p.user_id + '\')">删</button></td>'
+      + '</tr>').join('');
+  } catch (e) { tb.innerHTML = '<tr><td colspan="10" class="empty-state">加载失败</td></tr>'; }
+}
+async function editProfile(uid) {
+  const gid = document.getElementById('profileGroupId').value.trim();
+  const allowed = ['display_name','gender','age','occupation','location','personality','relationship','summary'];
+  const labels = {display_name:'称呼',gender:'性别',age:'年龄',occupation:'职业',location:'所在地',personality:'性格',relationship:'关系',summary:'概述'};
+  const field = prompt('修改哪个字段？输入序号(1-8)或英文名：\n1 称呼display_name  2 性别gender  3 年龄age  4 职业occupation\n5 所在地location  6 性格personality  7 关系relationship  8 概述summary', 'summary');
+  if (!field) return;
+  let f = field.trim();
+  if (/^[1-8]$/.test(f)) f = allowed[Number(f) - 1];
+  if (!allowed.includes(f)) { toast('字段名非法，只能是：' + allowed.join('/'), 'error'); return; }
+  const value = prompt('把「' + labels[f] + '」改成（留空即清空）：', '');
+  if (value === null) return;
+  try { await API.post('/api/profiles/update', { group_id: gid, user_id: uid, field: f, value });
+    toast('已写入画像库：' + labels[f], 'success'); loadProfiles(); }
+  catch (e) { toast('更新失败：' + e.message, 'error'); }
+}
+async function delProfile(uid) {
+  const gid = document.getElementById('profileGroupId').value.trim();
+  if (!confirm('删除群友 ' + uid + ' 的画像？')) return;
+  try { await API.post('/api/profiles/delete', { group_id: gid, user_id: uid });
+    toast('已删除', 'success'); loadProfiles(); }
+  catch (e) { toast('删除失败：' + e.message, 'error'); }
+}
+function fmtNum(n) { if (n >= 1e6) return (n/1e6).toFixed(2)+'M'; if (n >= 1e3) return (n/1e3).toFixed(1)+'K'; return n.toString(); }
+function fmtUptime(sec) { const h = Math.floor(sec/3600); const m = Math.floor((sec%3600)/60); return h>0 ? h+'h'+m+'m' : m+'m'; }
+function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+async function initApp() {
+  hideLogin();
+  try { await API.get('/api/health'); } catch (e) {}
+  loadDashboard(); connectWS();
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(() => {
+    if (currentPage === 'dashboard') loadDashboard();
+    if (currentPage === 'token') loadRecentCalls();
+  }, 10000);
+  if (window.statusTimer) clearInterval(window.statusTimer);
+  window.statusTimer = setInterval(() => {
+    if (currentPage === 'status') loadStatus();
+  }, 3000);
+}
+if (authToken) { initApp(); } else { showLogin(); }
+</script>
+</body>
+</html>

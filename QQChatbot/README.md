@@ -289,8 +289,8 @@ Web 控制台提供 RESTful API，主要接口：
 
 ## 📮 联系方式
 
-- GitHub Issues：[提交问题](https://github.com/your-username/qq-ai-chatbot/issues)
-- 邮箱：your-email@example.com
+- GitHub Issues：[提交问题](https://github.com/moyulou1/qq-ai-chatbot/issues)
+- 邮箱：moyulou209865@163.com
 
 ---
 

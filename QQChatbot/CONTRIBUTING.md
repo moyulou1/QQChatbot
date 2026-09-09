@@ -389,8 +389,8 @@ A: 不需要，本项目不要求签署 CLA。但你需要确保你的代码是�
 
 ## 联系我们
 
-- GitHub Issues：[提交问题](https://github.com/your-username/qq-ai-chatbot/issues)
-- 邮箱：your-email@example.com
+- GitHub Issues：[提交问题](https://github.com/moyulou1/qq-ai-chatbot/issues)
+- 邮箱：moyulou209865@163.com
 
 ---
 
